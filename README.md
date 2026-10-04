@@ -4,6 +4,10 @@ Pong in the browser where each paddle is either you or an AI. The AI is [fastino
 
 The model never sees the game. Each AI has a **harness**: a small Python file that turns the game state into one sentence ("The ball will arrive far above your paddle."), the labels the model chooses from, and how each label maps to a paddle move. The same model sits behind every AI, so the only difference between players is the harness.
 
+<video src="docs/demo.mp4" controls muted width="100%"></video>
+
+*Playing against h004. If the video doesn't load, open [docs/demo.mp4](docs/demo.mp4).*
+
 The repo has two parts:
 
 - **The browser game** (`pong.html` + `pong_server.py`): play it, or watch two harnesses play.
@@ -100,6 +104,7 @@ A match is 3 games to 15 points with fixed seeds, and the players swap sides eac
 | `players/` | One file per harness |
 | `results/matches.jsonl` | Log of every arena match |
 | `REPORT.md` | Generated leaderboard and notes on each harness |
+| `docs/demo.mp4` | The demo video in this README |
 | `main.py`, `steer.py` | Standalone experiments with the model |
 
 ## Troubleshooting
