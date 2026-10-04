@@ -109,13 +109,29 @@ def find_player(ref: str) -> Path:
 
 # ---------------------------------------------------------------- model
 
-class Brain:
-    """The model plus a cache. The model is deterministic, so caching by text changes no result."""
+def pick_device(name: str = "auto") -> str:
+    """Resolve "auto" to the best device here (cuda, then Apple mps, then cpu); check explicit names."""
+    import torch
+    available = {"cuda": torch.cuda.is_available(), "mps": torch.backends.mps.is_available(), "cpu": True}
+    if name == "auto":
+        return next(d for d in ("cuda", "mps", "cpu") if available[d])
+    if not available.get(name):
+        sys.exit(f"Device {name!r} is not available here (try --device auto or cpu)")
+    return name
 
-    def __init__(self):
+
+class Brain:
+    """The model plus a cache. The model is deterministic, so caching by text changes no result.
+
+    The arena stays on the CPU by default so logged results can be reproduced exactly; the
+    browser server picks the GPU when there is one.
+    """
+
+    def __init__(self, device: str = "cpu"):
         from gliner2 import AutoExtractor
-        print(f"Loading {MODEL_ID}...", flush=True)
-        self.model = AutoExtractor.from_pretrained(MODEL_ID).eval()
+        self.device = pick_device(device)
+        print(f"Loading {MODEL_ID} on {self.device}...", flush=True)
+        self.model = AutoExtractor.from_pretrained(MODEL_ID).to(self.device).eval()
         self.cache: dict = {}
         self.calls = 0
 
@@ -384,9 +400,9 @@ def write_report() -> None:
     print(f"Wrote {REPORT}")
 
 
-def probe(h: Harness) -> None:
+def probe(h: Harness, device: str = "cpu") -> None:
     """Sweep ball and paddle positions and both directions; print each distinct text once."""
-    brain = Brain()
+    brain = Brain(device)
     seen: dict[str, Counter] = {}
     for my_y in range(60, 441, 40):
         for by in range(10, 491, 20):
@@ -405,6 +421,9 @@ def probe(h: Harness) -> None:
 
 # ---------------------------------------------------------------- CLI
 
+DEVICE_HELP = "cpu (default, reproducible), mps, cuda or auto"
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -418,17 +437,19 @@ def main() -> None:
         p.add_argument("--seeds", type=int, nargs="+", default=DEFAULT_SEEDS)
         p.add_argument("--points", type=int, default=DEFAULT_POINTS)
         p.add_argument("--dry", action="store_true", help="play but do not log")
+        p.add_argument("--device", default="cpu", help=DEVICE_HELP)
         p.add_argument("--season", type=int, default=CURRENT_SEASON, choices=sorted(SEASONS))
     sub.add_parser("report")
     sub.add_parser("list")
     p = sub.add_parser("probe", help="show every text a harness writes over a grid of states, and the model's pick")
     p.add_argument("a")
+    p.add_argument("--device", default="cpu", help=DEVICE_HELP)
     args = ap.parse_args()
 
     if args.cmd == "report":
         return write_report()
     if args.cmd == "probe":
-        return probe(Harness(find_player(args.a)))
+        return probe(Harness(find_player(args.a)), args.device)
     if args.cmd == "list":
         for hid, h in all_harnesses().items():
             print(f"{hid}  {h.name}  ({h.path.name})")
@@ -445,7 +466,7 @@ def main() -> None:
     else:
         b = Harness(find_player(args.b))
 
-    brain = Brain()
+    brain = Brain(args.device)
     print(f"season {args.season} {args.cmd}: {a.id} ({a.name}) vs {b.id} ({b.name})", flush=True)
     m = play_match(brain, a, b, args.seeds, args.points, args.cmd, args.season)
     print(f"Result: {a.id} {m['points_a']} - {m['points_b']} {b.id}  ->  winner: {m['winner'] or 'draw'}  ({brain.calls} model calls)")

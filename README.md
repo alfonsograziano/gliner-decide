@@ -51,13 +51,16 @@ Each AI gets a card showing the sentence the model read, the move it chose, its 
 ```bash
 uv run pong_server.py --port 3071        # or: PORT=3071 uv run pong_server.py
 uv run pong_server.py --host 0.0.0.0     # reachable from other machines
+uv run pong_server.py --device cpu       # force the CPU (or: DEVICE=cpu)
 ```
+
+By default (`--device auto`) the model runs on the GPU when there is one: CUDA, then Apple's MPS, then the CPU. The first line the server prints says which one it picked. On an Apple Silicon Mac, MPS took about 90 ms per decision against about 160 ms on the CPU.
 
 The server has no authentication and runs the model on your machine, so keep the default `127.0.0.1` unless you are on a network you trust.
 
 ### Notes on AI vs AI
 
-The model runs on the CPU, one request at a time. With two AIs the requests queue, so each AI decides about half as often as it would alone (around 3 to 4 decisions a second each, against 6 or 7 for one). Both sides are slowed equally, so the match is fair, but it plays differently from the arena, where every AI decides every 0.15 seconds of game time.
+The model handles one request at a time. With two AIs the requests queue, so each AI decides about half as often as it would alone. Both sides are slowed equally, so the match is fair, but it plays differently from the arena, where every AI decides every 0.15 seconds of game time.
 
 ## Add your own AI
 
@@ -82,6 +85,8 @@ uv run arena.py ladder h006             # challenge the current champion
 uv run arena.py match h004 h005 --dry   # play without logging
 uv run arena.py report                  # rebuild REPORT.md from the log
 ```
+
+The arena runs on the CPU unless you pass `--device mps`, `cuda` or `auto`, so logged results stay reproducible. A different device can give tiny numeric differences, which may flip a close call and change a match.
 
 A match is 3 games to 15 points with fixed seeds, and the players swap sides each game. Results are appended to `results/matches.jsonl`, and [REPORT.md](REPORT.md) is generated from that file. Don't edit the report by hand.
 

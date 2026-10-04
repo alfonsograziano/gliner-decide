@@ -9,6 +9,7 @@ Usage:
     uv run pong_server.py                  # http://127.0.0.1:3070
     uv run pong_server.py --port 3071      # or set PORT
     uv run pong_server.py --host 0.0.0.0   # expose on the network (there is no auth)
+    uv run pong_server.py --device cpu     # default is auto: cuda, then Apple mps, then cpu
 """
 
 import argparse
@@ -50,9 +51,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--host", default=os.environ.get("HOST", "127.0.0.1"))
     parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", 3070)))
+    parser.add_argument("--device", default=os.environ.get("DEVICE", "auto"), help="auto, cpu, mps or cuda")
     args = parser.parse_args()
 
-    brain = arena.Brain()
+    brain = arena.Brain(args.device)
+    brain.model.classify_text("warm up", {"x": ["a", "b"]})  # so the first move is not slow
     players = load_players()
     lock = threading.Lock()  # one inference at a time
 
@@ -122,7 +125,7 @@ def main() -> None:
                              "confidence": out["confidence"], "ms": ms})
 
     server = ThreadingHTTPServer((args.host, args.port), Handler)
-    print(f"Pong ready on http://{args.host}:{args.port} with {len(players)} harnesses", flush=True)
+    print(f"Pong ready on http://{args.host}:{args.port} with {len(players)} harnesses on {brain.device}", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
