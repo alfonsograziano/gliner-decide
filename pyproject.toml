@@ -1,0 +1,9 @@
+[project]
+name = "gliner-decide"
+version = "0.1.0"
+description = "Pong in the browser, played by you or by GLiNER2.5-Decide harnesses, plus a headless arena that ranks them"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "gliner2[local]>=2.0.0",
+]
